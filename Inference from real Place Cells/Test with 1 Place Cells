@@ -1,0 +1,111 @@
+# Load file
+data = np.load('ALL_Cells_Rate_Maps_SpikeML_GR.dat.npz',allow_pickle=True)
+mi_diccionario_cargado = dict(data.items())
+
+# Ruta  GR_A
+base = mi_diccionario_cargado['arr_0']['Anim3005'][0][0]['Day0'][0][0]['GR_A'][0][0]
+
+matrix=base['Cell3'][0][0]
+
+
+# Convert to tensor
+real_tensor = torch.tensor(matrix, dtype=torch.float32)
+
+# Fix NaNs (replace with 0)
+real_tensor[torch.isnan(real_tensor)] = 0.0
+
+# Step 3: Flatten it
+x_obs = real_tensor.flatten()  # shape (100,)
+
+#See what it looks like
+plt.imshow(real_tensor, cmap='viridis')
+plt.title("Real matrix")
+plt.colorbar()
+plt.show()
+
+posterior_samples = posterior.sample((10000,), x=x_obs)
+
+_ = analysis.pairplot(
+    posterior_samples,
+    limits=[
+        [0.5, 1.2], [0.1, 2.0], [0.0, 9.0], [0.0, 9.0],
+         [0.5, 5.0], [0.5, 5.0], [0.0, 3.14]
+    ],
+    labels=[
+        "NMDA", "EIratio", "stim_x", "stim_y",
+         "sigma_x", "sigma_y", "theta"
+    ],
+    figsize=(12, 12)
+)
+
+
+
+# Obtener la media del posterior
+theta_mean = posterior_samples.mean(dim=0)               # shape: (8,)
+theta_mean_np = theta_mean.detach().numpy()
+print("Posterior mean estimate:", theta_mean_np)
+
+#COMPARE OBSERVATION VS SIMULATION FROM INFERRED PARAMETERS
+
+NMDA, EIratio, stim_x, stim_y, sigma_x, sigma_y, theta = theta_mean_np
+stim_x = int(round(stim_x))
+stim_y = int(round(stim_y))
+
+simulated_pf = FiringRateModel_ShiftedOutputNeuron(
+    N_x=10, N_y=10, M_x=5, M_y=5,
+    NMDA=NMDA,
+    EIratio=EIratio,
+    noise=0.05,
+    stim_center_x=stim_x,
+    stim_center_y=stim_y,
+    amplitude=20.0,
+    sigma_x=sigma_x,
+    sigma_y=sigma_y,
+    theta=theta
+)
+
+# Visualizar observación vs simulación
+fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+# Observación original
+im0 = axs[0].imshow(x_obs.view(10, 10).detach().numpy(), cmap="hot", origin="lower")
+axs[0].set_title("Observed Place Field")
+axs[0].set_xlabel("X")
+axs[0].set_ylabel("Y")
+plt.colorbar(im0, ax=axs[0], fraction=0.046, pad=0.04)
+
+# Simulación con media del posterior
+im1 = axs[1].imshow(simulated_pf, cmap="hot", origin="lower")
+axs[1].set_title("Simulated (Posterior Mean θ)")
+axs[1].set_xlabel("X")
+axs[1].set_ylabel("Y")
+plt.colorbar(im1, ax=axs[1], fraction=0.046, pad=0.04)
+
+plt.tight_layout()
+plt.show()
+
+
+
+# COMPUTE MEAN SQUARE ERROR
+
+# (A)Not ignoring NaNs
+
+sim_flat = np.array(simulated_pf).flatten()
+real_flat = np.array(matrix).flatten()
+
+
+sim_flat_nan = np.nan_to_num(sim_flat, nan=0.0)
+real_flat_nan = np.nan_to_num(real_flat, nan=0.0)
+
+mse = np.mean((sim_flat_nan - real_flat_nan) ** 2)
+
+print(f"Mean Squared Error: {mse:.6f}")
+
+# (B)Ignoring NaNs
+
+sim_flat = np.array(simulated_pf).flatten()
+real_flat = np.array(matrix).flatten()
+
+mse = np.nanmean((sim_flat - real_flat) ** 2)
+
+print(f"Mean Squared Error (ignoring NaNs): {mse:.6f}")
