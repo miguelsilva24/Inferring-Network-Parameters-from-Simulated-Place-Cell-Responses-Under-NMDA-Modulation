@@ -1,0 +1,30 @@
+# Generate a test observation
+theta_true = prior.sample((1,))          # True amplitude, x0, y0
+x_obs = simulator(theta_true)[0]         # Simulated 10x10 image, shape (100,)
+
+
+
+# Visualize the observation
+plt.imshow(x_obs.view(10, 10).detach().numpy(), cmap="viridis")
+plt.title(f"Simulated observation\nTrue θ: {theta_true.squeeze().tolist()}")
+plt.colorbar()
+plt.show()
+
+# Sample from the posterior given the observation
+posterior_samples = posterior.sample((10_000,), x=x_obs)
+
+# Plot posterior samples
+
+_ = analysis.pairplot(
+    posterior_samples,
+    limits=[
+        [0.5, 1.2], [0.10, 2.0], [0.0, 9.0], [0.0, 9.0],
+         [0.5, 5.0], [0.5, 5.0], [0.0, 3.14]
+    ],
+    labels=[
+        "NMDA", "EIratio", "stim_x", "stim_y",
+         "sigma_x", "sigma_y", "theta"
+    ],
+    points=theta_true,
+    figsize=(10, 10)
+)
