@@ -1,0 +1,31 @@
+def plot_3d_surface(matrix, title="Mapa de respuesta en 3D"):
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection='3d')
+
+    X, Y = np.meshgrid(np.arange(matrix.shape[0]), np.arange(matrix.shape[1]))
+    Z = matrix
+
+    ax.plot_surface(X, Y, Z, cmap=cm.viridis)
+    ax.set_title(title)
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Intensidad")
+
+    plt.tight_layout()
+    plt.show()
+
+place_field = FiringRateModel_ShiftedOutputNeuron(
+    N_x=10, N_y=10, M_x=5, M_y=5,
+    NMDA=0.84, EIratio=0.4, noise=0.14,
+    stim_center_x=5, stim_center_y=5,amplitude=20, sigma_x=1.5, sigma_y=1.5, theta=0.76)
+
+plt.figure(figsize=(6, 6))
+plt.title("Place Field simulado ")
+plt.imshow(place_field, origin='lower', cmap='hot')
+plt.colorbar(label="Activación máxima")
+plt.xlabel("Posición X")
+plt.ylabel("Posición Y")
+plt.grid(False)
+plt.show()
+
+plot_3d_surface(place_field, title="3D)")
