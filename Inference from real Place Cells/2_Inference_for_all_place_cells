@@ -1,0 +1,120 @@
+
+
+# === CONFIGURATION ===
+
+# Directory to .npz
+archivo_npz = "ALL_Cells_Rate_Maps_SpikeML_GR.dat.npz"
+
+# Control animals
+control = [3005, 3009, 3013, 3014, 3016, 3017, 4129, 4130, 4132, 4133, 4136, 4137, 4147]
+# Test animals
+test = [3018, 3019, 3020, 3021, 4131, 4134, 4135, 4138, 4139]
+
+animales = [f"Anim{i}" for i in control] #Change control for test in this line 
+
+# Days
+dias_en_orden = [
+    'Day_10', 'Day_9', 'Day_8', 'Day_7', 'Day_4',
+    'Day_3', 'Day_2', 'Day_1',
+    'Day0', 'Day7', 'Day8', 'Day12',
+    'Day13', 'Day17', 'Day18', 'Day22',
+    'Day23', 'Day27', 'Day28', 'Day32', 'Day33', 'Day40', 'Day41', 'Day85'
+]
+
+# Output directory
+output_dir = "resultados_inferencia_completa"
+os.makedirs(output_dir, exist_ok=True)
+
+# === LOAD DATA ===
+
+data = np.load(archivo_npz, allow_pickle=True)
+mi_diccionario_cargado = dict(data.items())
+
+# Final directory
+parametros_por_dia = {}
+rangos_globales = {k: [] for k in ["NMDA", "EIratio", "stim_x", "stim_y", "sigma_x", "sigma_y", "theta"]}
+
+# === MAIN LOOP  ===
+
+for dia_str in dias_en_orden:
+    todas_las_matrices = []
+
+    for animal in animales:
+        try:
+            dia = mi_diccionario_cargado['arr_0'][animal][0][0][dia_str]
+            if dia.size == 0:
+                continue
+            base = dia[0][0]['GR_B'][0][0]
+            if base is None:
+                continue
+        except (KeyError, ValueError, IndexError):
+            continue
+
+        try:
+            for nombre_celda in base.dtype.names:
+                try:
+                    matriz = base[nombre_celda][0][0]
+                    todas_las_matrices.append(matriz)
+                except:
+                    continue
+        except:
+            continue
+
+    if not todas_las_matrices:
+        continue
+
+    muestras_dia = []
+    
+    for matrix in tqdm(todas_las_matrices, desc=f"Inferencia {dia_str}"):
+        try:
+            real_tensor = torch.tensor(matrix, dtype=torch.float32)
+            real_tensor[torch.isnan(real_tensor)] = 0.0
+            x_obs = real_tensor.flatten()
+
+            posterior_o = posterior.set_default_x(x_obs)
+            samples = posterior_o.sample((1000,))
+            media = samples.mean(dim=0).numpy()
+            muestras_dia.append(media)
+
+        except KeyboardInterrupt:
+            print("\n Manual interruption with Ctrl+C. Moving on to next matrix...")
+            np.save(f"matriz_interrumpida_{dia_str}.npy", matrix)
+            continue
+
+
+    columnas = ["NMDA", "EIratio", "stim_x", "stim_y", "sigma_x", "sigma_y", "theta"]
+    df = pd.DataFrame(muestras_dia, columns=columnas)
+    parametros_por_dia[dia_str] = df
+
+    for col in columnas:
+        rangos_globales[col].extend(df[col].tolist())
+
+    # Save histograms per parameter
+    for col in columnas:
+        plt.figure(figsize=(8, 4))
+        df[col].hist(bins=30, edgecolor='black')
+        plt.title(f"{col} - {dia_str}")
+        plt.xlabel(col)
+        plt.ylabel("Frecuencia")
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, f"hist_{col}_{dia_str}.png"), dpi=300)
+        plt.close()
+
+# === SAVE RESULTS ===
+
+# Save .pkl
+with open(os.path.join(output_dir, "parametros_por_dia.pkl"), "wb") as f:
+    pickle.dump(parametros_por_dia, f)
+
+# Save global ranges
+rangos_finales = {param: {
+    "min_media": round(min(valores), 6),
+    "max_media": round(max(valores), 6)
+} for param, valores in rangos_globales.items()}
+
+with open(os.path.join(output_dir, "rangos_parametros.json"), "w") as f:
+    json.dump(rangos_finales, f, indent=4)
+
+pd.DataFrame(rangos_finales).T.to_csv(os.path.join(output_dir, "rangos_parametros.csv"))
+
+print(" Done! Saved in:", output_dir)
