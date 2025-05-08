@@ -1,1 +1,11 @@
 inference = NPE(prior=prior)
+
+# Simulate training data
+theta, x = simulate_for_sbi(simulator, proposal=prior, num_simulations=2000)
+
+#Train the NPE model
+inference = inference.append_simulations(theta, x)
+density_estimator = inference.train()
+
+#Build the posterior
+posterior = inference.build_posterior(density_estimator)
