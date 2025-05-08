@@ -1,0 +1,6 @@
+torch.save(posterior, 'posterior_entrenado.pt')
+torch.save((theta, x), 'datos_entrenamiento.pt')
+
+#Use this lines only to load previous trained data and posteriors
+posterior = torch.load('posterior_entrenado.pt')
+theta, x = torch.load('datos_entrenamiento.pt')
