@@ -1,0 +1,38 @@
+
+def simulator(theta_batch):
+    """
+    theta_batch: Tensor of shape (B, 8) → [NMDA, EIratio, stim_x, stim_y, amp, sigma_x, sigma_y, theta]
+    Returns: Tensor of shape (B, 100) → flattened 10x10 place fields
+    """
+    batch_size = theta_batch.shape[0]
+    outputs = []
+
+    for i in range(batch_size):
+        NMDA       = theta_batch[i, 0].item()
+        EIratio    = theta_batch[i, 1].item()
+        stim_x     = int(round(theta_batch[i, 2].item()))
+        stim_y     = int(round(theta_batch[i, 3].item()))
+        #amplitude  = theta_batch[i, 4].item()
+        sigma_x    = theta_batch[i, 4].item()
+        sigma_y    = theta_batch[i, 5].item()
+        theta      = theta_batch[i, 6].item()
+
+        noise = 0.05  
+        amplitude= 20.0
+
+        place_field = FiringRateModel_ShiftedOutputNeuron(
+            N_x=10, N_y=10, M_x=5, M_y=5,
+            NMDA=NMDA,
+            EIratio=EIratio,
+            noise=noise,
+            stim_center_x=stim_x,
+            stim_center_y=stim_y,
+            amplitude=amplitude,
+            sigma_x=sigma_x,
+            sigma_y=sigma_y,
+            theta=theta
+        )
+
+        outputs.append(torch.tensor(place_field.flatten(), dtype=torch.float32))
+
+    return torch.stack(outputs)
