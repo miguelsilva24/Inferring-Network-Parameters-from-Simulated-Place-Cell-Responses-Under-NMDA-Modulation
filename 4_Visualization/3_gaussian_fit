@@ -99,4 +99,4 @@ for dia in dias:
     plt.savefig(os.path.join(output_dir, f"gmm_dia_{dia_a_entero(dia)}.png"), dpi=300)
     plt.close()
 
-print("✅ Listo. Figuras guardadas en:", output_dir)
+print("Listo. Figuras guardadas en:", output_dir)
