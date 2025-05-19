@@ -1,0 +1,81 @@
+import pickle
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+
+# === CONFIGURA RUTAS ===
+
+# Nombres de tus archivos .pkl
+archivos = {
+    "control": [
+        "parametros_por_dia_GRA_CONTROL.pkl",
+        "parametros_por_dia_GRB_CONTROL.pkl"
+    ],
+    "nmda": [
+        "parametros_por_dia_GRA_NMDA.pkl",
+        "parametros_por_dia_GRB_NMDA.pkl"
+    ]
+}
+
+# === FUNCIÓN PARA CARGAR Y COMBINAR LOS DATOS ===
+
+def combinar_datos(archivos):
+    datos_combinados = {}
+
+    for archivo in archivos:
+        with open(archivo, "rb") as f:
+            datos = pickle.load(f)
+
+        for dia, df in datos.items():
+            if dia not in datos_combinados:
+                datos_combinados[dia] = []
+
+            if "NMDA" in df.columns:
+                datos_combinados[dia].extend(df["NMDA"].tolist())
+
+    return datos_combinados
+
+# === COMBINA CONTROL Y NMDA ===
+
+nmda_control = combinar_datos(archivos["control"])
+nmda_tratamiento = combinar_datos(archivos["nmda"])
+
+# === CALCULA MEDIA POR DÍA ===
+
+def calcular_media_por_dia(diccionario):
+    return {
+        dia: sum(valores) / len(valores)
+        for dia, valores in diccionario.items()
+        if valores  # evitar división por cero
+    }
+
+media_control = calcular_media_por_dia(nmda_control)
+media_nmda = calcular_media_por_dia(nmda_tratamiento)
+
+# === ORDENAR DÍAS POR VALOR NUMÉRICO ===
+
+def dia_a_entero(dia_str):
+    return -int(dia_str.split("_")[1]) if "_" in dia_str else int(dia_str.replace("Day", ""))
+
+dias_ordenados = sorted(set(media_control.keys()) | set(media_nmda.keys()), key=dia_a_entero)
+
+# === GRAFICAR ===
+
+plt.figure(figsize=(10, 6))
+
+x = [dia_a_entero(d) for d in dias_ordenados]
+
+y_control = [media_control.get(d, None) for d in dias_ordenados]
+y_nmda = [media_nmda.get(d, None) for d in dias_ordenados]
+
+plt.plot(x, y_control, label="Control", marker='o', color='blue')
+plt.plot(x, y_nmda, label="NMDA", marker='o', color='orange')
+
+plt.title("Evolución de NMDA (media por día)")
+plt.xlabel("Día")
+plt.ylabel("Media de NMDA")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("evolucion_nmda_control_vs_tratamiento.png", dpi=300)
+plt.show()
