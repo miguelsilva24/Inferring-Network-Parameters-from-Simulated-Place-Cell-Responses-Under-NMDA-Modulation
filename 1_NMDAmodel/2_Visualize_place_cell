@@ -16,7 +16,7 @@ def plot_3d_surface(matrix, title="Mapa de respuesta en 3D"):
 
 place_field = FiringRateModel_ShiftedOutputNeuron(
     N_x=10, N_y=10, M_x=5, M_y=5,
-    NMDA=0.84, EIratio=0.4, noise=0.14,
+    NMDA_EXC=0.84,NMDA_INH=0.80, EIratio=0.4, noise=0.14,
     stim_center_x=5, stim_center_y=5,amplitude=20, sigma_x=1.5, sigma_y=1.5, theta=0.76)
 
 plt.figure(figsize=(6, 6))
