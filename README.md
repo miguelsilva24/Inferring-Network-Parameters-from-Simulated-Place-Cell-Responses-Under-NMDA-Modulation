@@ -48,3 +48,14 @@ Tools for analyzing and visualizing the results.
 Equivalent visualizations for the two-NMDA conductance model.
 
 - `1_meanNMDA_dayswise_evolution`: Same as above but adapted to the two-conductance case.
+
+## Reference Paper
+
+This project is based on the computational model proposed in the study:
+
+> **Zamani, A. et al.** (2022). *Anti-NMDAR encephalitis antibodies cause long-lasting degradation of the hippocampal neural representation of memory*. bioRxiv. https://doi.org/10.1101/2022.11.25.517901
+
+In this work, the authors combined in vivo calcium imaging with behavioral assays and a computational model to investigate how anti-NMDAR antibodies disrupt hippocampal spatial memory in mice. Their computational model serves as the basis for this codebase, which expands the simulation and inference pipeline to study the impact of NMDA conductance reduction on CA1 neuronal dynamics and information encoding.
+
+This repository reproduces and extends aspects of the computational modeling described in the article, providing tools for simulating, visualizing, and inferring the effects of NMDA receptor reduction in hippocampal networks.
+
