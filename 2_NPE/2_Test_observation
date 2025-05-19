@@ -18,11 +18,11 @@ posterior_samples = posterior.sample((10_000,), x=x_obs)
 _ = analysis.pairplot(
     posterior_samples,
     limits=[
-        [0.5, 1.2], [0.10, 2.0], [0.0, 9.0], [0.0, 9.0],
+        [0.5, 1.7],[0.5, 1.2],[0.1, 2.0] ,[0.0, 9.0], [0.0, 9.0],
          [0.5, 5.0], [0.5, 5.0], [0.0, 3.14]
     ],
     labels=[
-        "NMDA", "EIratio", "stim_x", "stim_y",
+        "NMDA_EXC", "NMDA_INH","EI_ratio","stim_x", "stim_y",
          "sigma_x", "sigma_y", "theta"
     ],
     points=theta_true,
