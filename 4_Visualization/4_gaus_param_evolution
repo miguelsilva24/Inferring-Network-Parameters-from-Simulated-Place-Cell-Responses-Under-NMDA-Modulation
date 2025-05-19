@@ -1,0 +1,90 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+from sklearn.mixture import GaussianMixture
+import os
+
+# === Ruta a tus archivos .pkl ===
+archivos_control = [
+    "parametros_por_dia_GRA_CONTROL.pkl",
+    "parametros_por_dia_GRB_CONTROL.pkl"
+]
+archivos_nmda = [
+    "parametros_por_dia_GRA_NMDA.pkl",
+    "parametros_por_dia_GRB_NMDA.pkl"
+]
+
+# === Cargar datos de NMDA por día ===
+def recolectar_nmda_por_dia(archivos):
+    datos = {}
+    for archivo in archivos:
+        with open(archivo, "rb") as f:
+            data = pickle.load(f)
+        for dia, df in data.items():
+            if dia not in datos:
+                datos[dia] = []
+            if "NMDA" in df.columns:
+                datos[dia].extend(df["NMDA"].dropna().tolist())
+    return datos
+
+nmda_control = recolectar_nmda_por_dia(archivos_control)
+nmda_nmda = recolectar_nmda_por_dia(archivos_nmda)
+
+# === Conversión nombre de día → número ===
+def dia_a_entero(dia_str):
+    return -int(dia_str.split("_")[1]) if "_" in dia_str else int(dia_str.replace("Day", ""))
+
+# === Ajustar GMM y extraer mu, sigma, amp ===
+def extraer_parametros_gmm(datos_por_dia):
+    resultados = {}
+    for dia, valores in datos_por_dia.items():
+        if not valores:
+            continue
+        gmm = GaussianMixture(n_components=2, random_state=0)
+        gmm.fit(np.array(valores).reshape(-1, 1))
+        componentes = []
+        for i in range(2):
+            mu = gmm.means_[i][0]
+            sigma = np.sqrt(gmm.covariances_[i][0][0])
+            amp = gmm.weights_[i]
+            componentes.append({"mu": mu, "sigma": sigma, "amp": amp})
+        # Ordenar por mu para que Low sea siempre el más pequeño
+        componentes.sort(key=lambda c: c["mu"])
+        resultados[dia] = componentes
+    return resultados
+
+gmm_resultados = {
+    "control": extraer_parametros_gmm(nmda_control),
+    "nmda": extraer_parametros_gmm(nmda_nmda)
+}
+
+# === Generar gráficas para mu, sigma, amp ===
+parametros = ["mu", "sigma", "amp"]
+labels = ["(μ)", "(σ)", "Amplitud"]
+
+os.makedirs("plots_parametros_gmm", exist_ok=True)
+
+for param, label in zip(parametros, labels):
+    plt.figure(figsize=(10, 6))
+
+    for grupo, color in zip(["control", "nmda"], ["blue", "orange"]):
+        xs = [dia_a_entero(d) for d in gmm_resultados[grupo].keys()]
+        lows = [gmm_resultados[grupo][d][0][param] for d in gmm_resultados[grupo].keys()]
+        highs = [gmm_resultados[grupo][d][1][param] for d in gmm_resultados[grupo].keys()]
+
+        dias_ordenados, lows_ordenados = zip(*sorted(zip(xs, lows)))
+        dias_ordenados, highs_ordenados = zip(*sorted(zip(xs, highs)))
+
+        plt.plot(dias_ordenados, lows_ordenados, label=f"{grupo.capitalize()} – Low", linestyle="-", color=color)
+        plt.plot(dias_ordenados, highs_ordenados, label=f"{grupo.capitalize()} – High", linestyle="--", color=color)
+
+    plt.title(f"Evolución del parámetro: {label}")
+    plt.xlabel("Día")
+    plt.ylabel(label)
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"plots_parametros_gmm/evolucion_{param}_gmm.png", dpi=300)
+    plt.close()
+
+print("Figuras guardadas en 'plots_parametros_gmm/'")
