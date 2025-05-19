@@ -23,6 +23,7 @@ def Fgauss2D(x, y, center_x, center_y, amplitude, sigma_x, sigma_y, theta):
 
     return amplitude * np.exp(-(a * x_shifted**2 + 2 * b * x_shifted * y_shifted + c * y_shifted**2))
 
+
 # Leaky Integrate-and-Fire (LIF) neuron model
 def LIF_neuron(I, dt, V_rest=-65, V_th=-55, V_reset=-70, tau=10):
     V = V_rest
@@ -37,7 +38,7 @@ def LIF_neuron(I, dt, V_rest=-65, V_th=-55, V_reset=-70, tau=10):
             spikes[t] = 1
     return spikes, V_trace
 
-def FiringRateModel_ShiftedOutputNeuron(N_x, N_y, M_x, M_y, NMDA, EIratio, noise, stim_center_x, stim_center_y, amplitude, sigma_x, sigma_y, theta):
+def FiringRateModel_ShiftedOutputNeuron(N_x, N_y, M_x, M_y, NMDA_EXC,NMDA_INH, EIratio, noise, stim_center_x, stim_center_y, amplitude, sigma_x, sigma_y, theta):
     dt = 0.1
     Tmax = 200
     time = np.arange(0, Tmax, dt)
@@ -94,15 +95,14 @@ def FiringRateModel_ShiftedOutputNeuron(N_x, N_y, M_x, M_y, NMDA, EIratio, noise
             kernel_patch = J_exc_kernel[kx0:kx1, ky0:ky1]
 
             V_local_patch_exc = np.sum(V_patch_exc * kernel_patch[:, :, None], axis=(0, 1))
-            NMDA_weight_exc = (E_rev - V_local_patch_exc) / (1 + np.exp((-(V_local_patch_exc +40 )/ 10.0)))
+            NMDA_weight_exc = NMDA_EXC*(E_rev - V_local_patch_exc) / (1 + np.exp((-(V_local_patch_exc +40 )/ 10.0)))
             modulated_exc_spike = np.sum(exc_patch * kernel_patch[:, :, None], axis=(0, 1)) * NMDA_weight_exc
 
             V_local_inh = np.sum(voltage_inh * J_inh_to_out[:, :, None], axis=(0, 1))
-            NMDA_weight_inh = (E_rev - V_local_inh) / (1 + np.exp(-(V_local_inh+40) / 10.0))
+            NMDA_weight_inh = NMDA_INH*(E_rev - V_local_inh) / (1 + np.exp(-(V_local_inh+40) / 10.0))
             modulated_inh_spike = np.sum(inhibitory_grid * J_inh_to_out[:, :, None], axis=(0, 1)) * NMDA_weight_inh
 
-            output_trace = NMDA * (modulated_exc_spike - modulated_inh_spike)
+            output_trace = (modulated_exc_spike - modulated_inh_spike)
             output_response_map[i, j] = np.max(output_trace)
 
     return output_response_map
-
