@@ -1,3 +1,5 @@
+#THIS VERSION OF THE MODEL ACCOUNTS FOR 2 DIFFERNT NMDA PARAMETERS, EXCITATION_NMDA AND INHIBITION_NMDA
+
 def Fgauss2D(x, y, center_x, center_y, amplitude, sigma_x, sigma_y, theta):
     x_shifted = x - center_x
     y_shifted = y - center_y
