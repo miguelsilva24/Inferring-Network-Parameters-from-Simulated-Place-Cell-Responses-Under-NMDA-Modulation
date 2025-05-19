@@ -23,20 +23,22 @@ plt.title("Real matrix")
 plt.colorbar()
 plt.show()
 
+
 posterior_samples = posterior.sample((10000,), x=x_obs)
 
 _ = analysis.pairplot(
     posterior_samples,
     limits=[
-        [0.5, 1.2], [0.1, 2.0], [0.0, 9.0], [0.0, 9.0],
+        [0.5, 1.7], [0.5, 1.2],[0.1, 2.0],[0.0, 9.0], [0.0, 9.0],
          [0.5, 5.0], [0.5, 5.0], [0.0, 3.14]
     ],
     labels=[
-        "NMDA", "EIratio", "stim_x", "stim_y",
+        "NMDA_EXC","NMDA_INH","EI_ratio","stim_x", "stim_y",
          "sigma_x", "sigma_y", "theta"
     ],
     figsize=(12, 12)
 )
+
 
 
 
@@ -47,13 +49,14 @@ print("Posterior mean estimate:", theta_mean_np)
 
 #COMPARE OBSERVATION VS SIMULATION FROM INFERRED PARAMETERS
 
-NMDA, EIratio, stim_x, stim_y, sigma_x, sigma_y, theta = theta_mean_np
+NMDA_EXC, NMDA_INH,EIratio, stim_x, stim_y, sigma_x, sigma_y, theta = theta_mean_np
 stim_x = int(round(stim_x))
 stim_y = int(round(stim_y))
 
 simulated_pf = FiringRateModel_ShiftedOutputNeuron(
     N_x=10, N_y=10, M_x=5, M_y=5,
-    NMDA=NMDA,
+    NMDA_EXC = NMDA_EXC,
+    NMDA_INH = NMDA_INH,
     EIratio=EIratio,
     noise=0.05,
     stim_center_x=stim_x,
@@ -63,6 +66,7 @@ simulated_pf = FiringRateModel_ShiftedOutputNeuron(
     sigma_y=sigma_y,
     theta=theta
 )
+
 
 # Visualizar observación vs simulación
 fig, axs = plt.subplots(1, 2, figsize=(12, 5))
