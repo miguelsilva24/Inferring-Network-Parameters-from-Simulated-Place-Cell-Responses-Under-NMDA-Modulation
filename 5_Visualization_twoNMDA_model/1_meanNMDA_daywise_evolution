@@ -1,0 +1,108 @@
+import pickle
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+
+# === CONFIGURA RUTAS ===
+
+# Nombres de tus archivos .pkl
+archivos = {
+    "control": [
+        "parametros_por_dia_GRA_CONTROL.pkl",
+        "parametros_por_dia_GRB_CONTROL.pkl"
+    ],
+    "nmda": [
+        "parametros_por_dia_GRA_NMDA.pkl",
+        "parametros_por_dia_GRB_NMDA.pkl"
+    ]
+}
+
+# === FUNCIÓN PARA CARGAR Y COMBINAR LOS DATOS ===
+
+def combinar_datos_EXC(archivos):
+    datos_combinados_EXC = {}
+
+    for archivo in archivos:
+        with open(archivo, "rb") as f:
+            datos = pickle.load(f)
+
+        for dia, df in datos.items():
+            if dia not in datos_combinados_EXC:
+                datos_combinados_EXC[dia] = []
+
+            if "NMDA_EXC" in df.columns:
+                datos_combinados_EXC[dia].extend(df["NMDA_EXC"].tolist())
+
+    return datos_combinados_EXC
+
+def combinar_datos_INH(archivos):
+    datos_combinados_INH = {}
+
+    for archivo in archivos:
+        with open(archivo, "rb") as f:
+            datos = pickle.load(f)
+
+        for dia, df in datos.items():
+            if dia not in datos_combinados_INH:
+                datos_combinados_INH[dia] = []
+
+            if "NMDA_INH" in df.columns:
+                datos_combinados_INH[dia].extend(df["NMDA_INH"].tolist())
+
+    return datos_combinados_INH
+
+# === COMBINA CONTROL Y NMDA ===
+
+nmda_control_EXC = combinar_datos_EXC(archivos["control"])
+nmda_tratamiento_EXC = combinar_datos_EXC(archivos["nmda"])
+nmda_control_INH = combinar_datos_INH(archivos["control"])
+nmda_tratamiento_INH = combinar_datos_INH(archivos["nmda"])
+
+# === CALCULA MEDIA POR DÍA ===
+
+def calcular_media_por_dia(diccionario):
+    return {
+        dia: sum(valores) / len(valores)
+        for dia, valores in diccionario.items()
+        if valores  # evitar división por cero
+    }
+
+media_control_EXC = calcular_media_por_dia(nmda_control_EXC)
+media_nmda_EXC = calcular_media_por_dia(nmda_tratamiento_EXC)
+media_control_INH = calcular_media_por_dia(nmda_control_INH)
+media_nmda_INH = calcular_media_por_dia(nmda_tratamiento_INH)
+
+# === ORDENAR DÍAS POR VALOR NUMÉRICO ===
+
+def dia_a_entero(dia_str):
+    return -int(dia_str.split("_")[1]) if "_" in dia_str else int(dia_str.replace("Day", ""))
+
+dias_ordenados_EXC = sorted(set(media_control_EXC.keys()) | set(media_nmda_EXC.keys()), key=dia_a_entero)
+dias_ordenados_INH = sorted(set(media_control_INH.keys()) | set(media_nmda_INH.keys()), key=dia_a_entero)
+
+# === GRAFICAR ===
+
+plt.figure(figsize=(10, 6))
+
+x_EXC = [dia_a_entero(d) for d in dias_ordenados_EXC]
+x_INH = [dia_a_entero(d) for d in dias_ordenados_INH]
+
+y_control_EXC = [media_control_EXC.get(d, None) for d in dias_ordenados_EXC]
+y_nmda_EXC = [media_nmda_EXC.get(d, None) for d in dias_ordenados_EXC]
+
+y_control_INH = [media_control_INH.get(d, None) for d in dias_ordenados_INH]
+y_nmda_INH = [media_nmda_INH.get(d, None) for d in dias_ordenados_INH]
+
+plt.plot(x_EXC, y_control_EXC, label="Control_EXC", marker='o', color='blue')
+plt.plot(x_EXC, y_nmda_EXC, label="NMDA_EXC", marker='o', color='orange')
+plt.plot(x_INH, y_control_INH, label="Control_INH", marker='o', color='green')
+plt.plot(x_INH, y_nmda_INH, label="NMDA_INH", marker='o', color='red')
+
+plt.title("Daywise evolution of Mean NMDA value")
+plt.xlabel("Día")
+plt.ylabel("NMDA Mean")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("evolucion_nmda_control_vs_tratamiento.png", dpi=300)
+plt.show()
