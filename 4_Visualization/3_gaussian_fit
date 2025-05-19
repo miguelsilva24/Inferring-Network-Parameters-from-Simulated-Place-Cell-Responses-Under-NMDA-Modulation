@@ -1,0 +1,102 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+import os
+from sklearn.mixture import GaussianMixture
+
+# === Configura rutas ===
+archivos_control = [
+    "parametros_por_dia_GRA_control.pkl",
+    "parametros_por_dia_GRB_control.pkl"
+]
+archivos_nmda = [
+    "parametros_por_dia_GRA_NMDA.pkl",
+    "parametros_por_dia_GRB_NMDA.pkl"
+]
+
+# === Función para recolectar NMDA por día ===
+def recolectar_nmda_por_dia(archivos):
+    datos = {}
+    for archivo in archivos:
+        with open(archivo, "rb") as f:
+            data = pickle.load(f)
+        for dia, df in data.items():
+            if dia not in datos:
+                datos[dia] = []
+            if "NMDA" in df.columns:
+                datos[dia].extend(df["NMDA"].dropna().tolist())
+    return datos
+
+# === Carga de datos ===
+nmda_control = recolectar_nmda_por_dia(archivos_control)
+nmda_nmda = recolectar_nmda_por_dia(archivos_nmda)
+
+# === Día como entero ===
+def dia_a_entero(dia_str):
+    return -int(dia_str.split("_")[1]) if "_" in dia_str else int(dia_str.replace("Day", ""))
+
+dias = sorted(set(nmda_control.keys()) | set(nmda_nmda.keys()), key=dia_a_entero)
+
+# === Crear carpeta de salida ===
+output_dir = "histogramas_gmm_control_vs_nmda"
+os.makedirs(output_dir, exist_ok=True)
+
+# === Establecer límites globales ===
+todos_valores = []
+for v in list(nmda_control.values()) + list(nmda_nmda.values()):
+    todos_valores.extend(v)
+
+x_min = np.min(todos_valores)
+x_max = np.max(todos_valores)
+bins = np.linspace(x_min, x_max, 30)
+
+# Escalar eje Y
+y_max = 0
+for valores in list(nmda_control.values()) + list(nmda_nmda.values()):
+    y, _ = np.histogram(valores, bins=bins, density=True)
+    y_max = max(y_max, y.max())
+
+# === Función para ajustar y graficar GMM ===
+def ajustar_gmm_y_graficar(ax, valores, color, titulo):
+    if not valores:
+        return
+    ax.hist(valores, bins=bins, density=True, alpha=0.5, color=color, edgecolor='black')
+    gmm = GaussianMixture(n_components=2)
+    gmm.fit(np.array(valores).reshape(-1, 1))
+    x = np.linspace(x_min, x_max, 500).reshape(-1, 1)
+    logprob = gmm.score_samples(x)
+    pdf = np.exp(logprob)
+    #ax.plot(x, pdf, label='Suma Gauss', color='red')
+
+    # Componentes individuales
+    for i in range(2):
+        mean = gmm.means_[i][0]
+        std = np.sqrt(gmm.covariances_[i][0][0])
+        weight = gmm.weights_[i]
+        componente = weight * (1 / (std * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mean) / std) ** 2)
+        ax.plot(x, componente, '--', label=f'Componente {i+1}')
+
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(0, y_max * 1.1)
+    ax.set_title(titulo)
+    ax.set_xlabel("NMDA")
+    ax.set_ylabel("Densidad")
+    ax.legend()
+    ax.grid(True)
+
+# === Generar figuras por día ===
+for dia in dias:
+    valores_c = nmda_control.get(dia, [])
+    valores_n = nmda_nmda.get(dia, [])
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
+    fig.suptitle(f"Día {dia_a_entero(dia)} – Ajuste de 2 Gaussianas", fontsize=14)
+
+    ajustar_gmm_y_graficar(axes[0], valores_c, "blue", "Control")
+    ajustar_gmm_y_graficar(axes[1], valores_n, "orange", "NMDA")
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(os.path.join(output_dir, f"gmm_dia_{dia_a_entero(dia)}.png"), dpi=300)
+    plt.close()
+
+print("Listo. Figuras guardadas en:", output_dir)
