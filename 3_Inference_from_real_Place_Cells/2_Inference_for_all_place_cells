@@ -89,17 +89,6 @@ for dia_str in dias_en_orden:
     for col in columnas:
         rangos_globales[col].extend(df[col].tolist())
 
-    # Save histograms per parameter
-    for col in columnas:
-        plt.figure(figsize=(8, 4))
-        df[col].hist(bins=30, edgecolor='black')
-        plt.title(f"{col} - {dia_str}")
-        plt.xlabel(col)
-        plt.ylabel("Frecuencia")
-        plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, f"hist_{col}_{dia_str}.png"), dpi=300)
-        plt.close()
-
 # === SAVE RESULTS ===
 
 # Save .pkl
@@ -111,9 +100,6 @@ rangos_finales = {param: {
     "min_media": round(min(valores), 6),
     "max_media": round(max(valores), 6)
 } for param, valores in rangos_globales.items()}
-
-with open(os.path.join(output_dir, "rangos_parametros.json"), "w") as f:
-    json.dump(rangos_finales, f, indent=4)
 
 pd.DataFrame(rangos_finales).T.to_csv(os.path.join(output_dir, "rangos_parametros.csv"))
 
