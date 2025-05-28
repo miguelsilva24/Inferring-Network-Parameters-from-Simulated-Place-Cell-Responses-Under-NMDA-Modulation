@@ -13,8 +13,8 @@ archivos_nmda = [
     "parametros_por_dia_GRB_NMDA.pkl"
 ]
 
-# === Recolectar todos los valores NMDA por día desde múltiples archivos ===
-def recolectar_nmda_por_dia(archivos):
+# === Recolectar valores NMDA por día y por tipo (EXC, INH) desde múltiples archivos ===
+def recolectar_por_tipo(archivos, tipo):
     datos = {}
     for archivo in archivos:
         with open(archivo, "rb") as f:
@@ -22,62 +22,75 @@ def recolectar_nmda_por_dia(archivos):
         for dia, df in data.items():
             if dia not in datos:
                 datos[dia] = []
-            if "NMDA" in df.columns:
-                datos[dia].extend(df["NMDA"].dropna().tolist())
+            columna = f"NMDA_{tipo}"
+            if columna in df.columns:
+                datos[dia].extend(df[columna].dropna().tolist())
     return datos
 
-nmda_control = recolectar_nmda_por_dia(archivos_control)
-nmda_nmda = recolectar_nmda_por_dia(archivos_nmda)
+tipos = ["EXC", "INH"]
+datos_control = {tipo: recolectar_por_tipo(archivos_control, tipo) for tipo in tipos}
+datos_nmda = {tipo: recolectar_por_tipo(archivos_nmda, tipo) for tipo in tipos}
 
 # === Convertir días a enteros para ordenarlos ===
 def dia_a_entero(dia_str):
     return -int(dia_str.split("_")[1]) if "_" in dia_str else int(dia_str.replace("Day", ""))
 
-dias = sorted(set(nmda_control.keys()) | set(nmda_nmda.keys()), key=dia_a_entero)
+dias = sorted(
+    set.union(*[set(datos_control[t].keys()) | set(datos_nmda[t].keys()) for t in tipos]),
+    key=dia_a_entero
+)
 
-# === Crear carpeta de salida ===
+# === Crear carpeta principal ===
 output_dir = "histogramas_nmda_densidad"
 os.makedirs(output_dir, exist_ok=True)
 
-# === Establecer ejes globales ===
-todos_valores = []
-for valores in list(nmda_control.values()) + list(nmda_nmda.values()):
-    todos_valores.extend(valores)
+# === Procesar cada tipo (EXC e INH) ===
+for tipo in tipos:
+    subdir = os.path.join(output_dir, f"NMDA_{tipo}")
+    os.makedirs(subdir, exist_ok=True)
 
-x_min = np.min(todos_valores)
-x_max = np.max(todos_valores)
-bins = np.linspace(x_min, x_max, 30)
+    # Establecer ejes globales
+    todos_valores = []
+    for valores in list(datos_control[tipo].values()) + list(datos_nmda[tipo].values()):
+        todos_valores.extend(valores)
 
-y_max = 0
-for valores in list(nmda_control.values()) + list(nmda_nmda.values()):
-    y, _ = np.histogram(valores, bins=bins, density=True)
-    y_max = max(y_max, y.max())
+    if not todos_valores:
+        continue
 
-# === Generar figuras por día ===
-for dia in dias:
-    vals_c = nmda_control.get(dia, [])
-    vals_n = nmda_nmda.get(dia, [])
+    x_min = np.min(todos_valores)
+    x_max = np.max(todos_valores)
+    bins = np.linspace(x_min, x_max, 30)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
-    fig.suptitle(f"Día {dia_a_entero(dia)} – Densidad NMDA", fontsize=14)
+    y_max = 0
+    for valores in list(datos_control[tipo].values()) + list(datos_nmda[tipo].values()):
+        y, _ = np.histogram(valores, bins=bins, density=True)
+        y_max = max(y_max, y.max())
 
-    if vals_c:
-        axes[0].hist(vals_c, bins=bins, density=True, color="blue", edgecolor="black", alpha=0.7)
-        axes[0].set_title("Control")
-        axes[0].set_xlim(x_min, x_max)
-        axes[0].set_ylim(0, y_max * 1.1)
+    # Generar figuras por día
+    for dia in dias:
+        vals_c = datos_control[tipo].get(dia, [])
+        vals_n = datos_nmda[tipo].get(dia, [])
 
-    if vals_n:
-        axes[1].hist(vals_n, bins=bins, density=True, color="orange", edgecolor="black", alpha=0.7)
-        axes[1].set_title("NMDA")
-        axes[1].set_xlim(x_min, x_max)
-        axes[1].set_ylim(0, y_max * 1.1)
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
+        fig.suptitle(f"Día {dia_a_entero(dia)} – Densidad NMDA_{tipo}", fontsize=14)
 
-    for ax in axes:
-        ax.set_xlabel("Valor inferido NMDA")
-        ax.set_ylabel("Densidad de probabilidad")
-        ax.grid(True)
+        if vals_c:
+            axes[0].hist(vals_c, bins=bins, density=True, color="blue", edgecolor="black", alpha=0.7)
+            axes[0].set_title("Control")
+            axes[0].set_xlim(x_min, x_max)
+            axes[0].set_ylim(0, y_max * 1.1)
 
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(os.path.join(output_dir, f"hist_nmda_dia_{dia_a_entero(dia)}.png"), dpi=300)
-    plt.close()
+        if vals_n:
+            axes[1].hist(vals_n, bins=bins, density=True, color="orange", edgecolor="black", alpha=0.7)
+            axes[1].set_title("NMDA")
+            axes[1].set_xlim(x_min, x_max)
+            axes[1].set_ylim(0, y_max * 1.1)
+
+        for ax in axes:
+            ax.set_xlabel("Valor inferido NMDA")
+            ax.set_ylabel("Densidad de probabilidad")
+            ax.grid(True)
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plt.savefig(os.path.join(subdir, f"hist_nmda_{tipo}_dia_{dia_a_entero(dia)}.png"), dpi=300)
+        plt.close()
