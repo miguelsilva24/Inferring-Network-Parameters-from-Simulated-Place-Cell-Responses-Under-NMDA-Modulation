@@ -13,7 +13,7 @@ plt.show()
 # Sample from the posterior given the observation
 posterior_samples = posterior.sample((10_000,), x=x_obs)
 
-# Plot posterior samples
+# Plot posterior samples (if you edit the prior values, you have to edit the limits of the pairplot)
 
 _ = analysis.pairplot(
     posterior_samples,
