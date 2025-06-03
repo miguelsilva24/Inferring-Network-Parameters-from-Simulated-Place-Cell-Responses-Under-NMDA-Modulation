@@ -1,18 +1,15 @@
-import torch
-from sbi.inference import NPE, simulate_for_sbi
-from sbi import utils as utils
-from sbi import analysis
-
 #Step 1: Define parameter dimensionality
 num_dim = 8
 
-#Step 2: Define prior
+#Step 2: Define prior (lower and upper values of the parameters you wat to infer)
+
 prior = utils.BoxUniform(
     low=torch.tensor([0.5, 0.5, 0.1, 0.0, 0.0, 0.5, 0.5, 0.0]),   # NMDA_EXC ,NMDA_INH, EIratio, stim_x, stim_y, σx, σy, θ
-    high=torch.tensor([1.7, 1.2, 2.0, 9.0, 9.0, 5.0, 5.0, 3.14])   # θ ∈ [0, π]
+    high=torch.tensor([1.7, 1.2, 2.0, 9.0, 9.0, 5.0, 5.0, 3.14])  # NMDA_EXC ,NMDA_INH, EIratio, stim_x, stim_y, σx, σy, θ
 )
 
 # Step 3: Define a batch-capable simulator
+
 def simulator(theta_batch):
     """
     theta_batch: Tensor of shape (B, 8) → [NMDA, EIratio, stim_x, stim_y, amp, sigma_x, sigma_y, theta]
@@ -34,7 +31,6 @@ def simulator(theta_batch):
         noise = 0.05  
         amplitude= 20.0
         
-
         place_field = FiringRateModel_ShiftedOutputNeuron(
             N_x=10, N_y=10, M_x=5, M_y=5,
             NMDA_EXC=NMDA_EXC,
