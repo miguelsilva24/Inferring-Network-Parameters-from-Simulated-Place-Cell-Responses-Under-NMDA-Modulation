@@ -3,7 +3,7 @@
 # === CONFIGURATION ===
 
 # Directory to .npz
-archivo_npz = "ALL_Cells_Rate_Maps_SpikeML_GR.dat.npz"
+archivo_npz = "ALL_Cells_Rate_Maps_SpikeML_GR.npz"
 
 # Control animals
 control = [3005, 3009, 3013, 3014, 3016, 3017, 4129, 4130, 4132, 4133, 4136, 4137, 4147]
