@@ -1,0 +1,14 @@
+
+
+file=scipy.io.loadmat('ALL_Cells_Rate_Maps_SpikeML_NOL.mat', squeeze_me=False)
+
+x=file['ALL_Rate_Maps']
+
+np.savez('ALL_Cells_Rate_Maps_SpikeML_NOL', x)
+
+
+file2=scipy.io.loadmat('ALL_Cells_Rate_Maps_SpikeML_GR.mat', squeeze_me=False)
+
+y=file2['ALL_Rate_Maps']
+
+np.savez('ALL_Cells_Rate_Maps_SpikeML_GR', y)
